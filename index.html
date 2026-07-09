@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Momentum</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{
+  --bg:#0C1220; --panel:#131C2E; --panel-up:#1A2540; --line:#26334D;
+  --text:#E8EDF2; --dim:#6B7A90; --up:#37E6C4; --down:#FFAE52; --danger:#FF7A6B;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;}
+button{font-family:inherit;cursor:pointer;}
+input,textarea{font-family:inherit;}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--up);outline-offset:2px;}
+.wrap{max-width:480px;margin:0 auto;padding:0 16px 96px;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.label{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:12px;}
+.header{padding:24px 0 12px;display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--line);}
+.big{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;}
+.nav{position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--line);}
+.nav-inner{max-width:480px;margin:0 auto;display:flex;}
+.nav button{flex:1;padding:16px 0;background:none;border:none;color:var(--dim);font-size:13px;border-top:2px solid transparent;margin-top:-1px;}
+.nav button.on{color:var(--up);font-weight:700;border-top-color:var(--up);}
+.mood-row{display:flex;gap:6px;margin-bottom:20px;}
+.mood-row button{flex:1;padding:12px 0 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--dim);}
+.mood-row button.on{border-color:var(--up);background:rgba(55,230,196,.10);color:var(--up);}
+.mood-row .n{font-size:16px;font-weight:700;}
+.mood-row .t{font-size:9px;letter-spacing:.08em;font-family:'JetBrains Mono',monospace;}
+.hlist{display:flex;flex-direction:column;gap:8px;}
+.hrow{display:flex;align-items:center;gap:12px;text-align:left;width:100%;padding:14px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--dim);}
+.hrow .box{width:20px;height:20px;border-radius:6px;flex-shrink:0;border:2px solid var(--dim);display:flex;align-items:center;justify-content:center;color:var(--bg);font-size:13px;font-weight:700;}
+.hrow .nm{flex:1;font-size:15px;}
+.hrow .wt{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);}
+.hrow.on{border-color:var(--up);background:rgba(55,230,196,.08);color:var(--text);}
+.hrow.on .box{border-color:var(--up);background:var(--up);}
+.hrow.anti .box{border-radius:10px;}
+.hrow.anti.on{border-color:var(--down);background:rgba(255,174,82,.10);}
+.hrow.anti.on .box{border-color:var(--down);background:var(--down);}
+.hrow.anti.on .wt{color:var(--down);}
+.cta{width:100%;margin-top:22px;padding:16px 0;border-radius:10px;border:none;background:var(--up);color:var(--bg);font-size:15px;font-weight:700;}
+.cta.neg{background:var(--down);}
+.hint{font-size:11px;color:var(--dim);text-align:center;margin-top:12px;font-family:'JetBrains Mono',monospace;}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;}
+.stats{display:flex;gap:8px;margin-top:12px;}
+.stat{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;}
+.stat .l{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:.15em;color:var(--dim);}
+.stat .v{font-size:16px;font-weight:700;margin-top:4px;}
+.chip{padding:5px 10px;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;border:1px solid var(--line);background:none;color:var(--dim);}
+.chip.on{border-color:var(--up);color:var(--up);}
+textarea,input[type=text],input[type=password]{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;color:var(--text);padding:14px;font-size:15px;resize:none;}
+.ghost{padding:10px 0;border-radius:8px;border:1px dashed var(--line);background:none;color:var(--dim);font-size:13px;flex:1;}
+.ghost.warn{border-color:var(--down);color:var(--down);}
+.erow{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center;}
+.erow input{background:none;border:none;padding:0;border-radius:0;flex:1;font-size:14px;min-width:0;color:var(--text);}
+.tag{padding:3px 7px;border-radius:6px;font-size:9px;font-family:'JetBrains Mono',monospace;letter-spacing:.05em;border:1px solid var(--up);background:none;color:var(--up);flex-shrink:0;}
+.tag.anti{border-color:var(--down);color:var(--down);}
+.wbar{display:flex;gap:3px;}
+.wbar button{width:8px;height:20px;border-radius:3px;border:none;padding:0;background:var(--line);}
+.x{background:none;border:none;color:var(--dim);font-size:16px;padding:0 2px;}
+.small{padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:none;font-size:11px;color:var(--dim);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="label" style="margin-bottom:0;">MOMENTUM</div>
+      <div id="hGoal" style="font-size:12px;color:var(--dim);margin-top:4px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+    </div>
+    <div style="text-align:right;">
+      <span id="hScore" class="big" style="color:var(--dim);">—</span>
+      <div id="hDelta" class="mono" style="font-size:10px;"></div>
+    </div>
+  </div>
+  <div id="view"></div>
+</div>
+<div class="nav"><div class="nav-inner">
+  <button data-v="today">Today</button>
+  <button data-v="trend">Trend</button>
+  <button data-v="goal">Goal</button>
+</div></div>
+
+<script>
+// ============ constants ============
+const IMPUTED = -0.2, ALPHA = 0.25, HABIT_BLEND = 0.65;
+const KEY = 'momentum-v1';
+const C = {bg:'#0C1220',panel:'#131C2E',line:'#26334D',text:'#E8EDF2',dim:'#6B7A90',up:'#37E6C4',down:'#FFAE52'};
+const MOODS = [[1,'SINKING'],[2,'LOW'],[3,'LEVEL'],[4,'GOOD'],[5,'PEAK']];
+
+// ============ state ============
+let S = load();
+let view = S.habits.length ? 'today' : 'goal';
+let range = 42;
+let draft = null;          // today's in-progress check-in
+let editHabits = null;     // goal editor working copy
+let chart = null;
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(raw){ const s = JSON.parse(raw);
+      s.habits = (s.habits||[]).map(h => Object.assign({type:'build'}, h));
+      s.logs = s.logs || {}; s.goal = s.goal || ''; s.apiKey = s.apiKey || '';
+      return s;
+    }
+  }catch(e){}
+  return {goal:'',habits:[],logs:{},apiKey:''};
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+
+// ============ engine ============
+const todayKey = () => new Date().toLocaleDateString('sv-SE'); // local YYYY-MM-DD
+function addDays(k,n){ const d=new Date(k+'T12:00:00'); d.setDate(d.getDate()+n); return d.toLocaleDateString('sv-SE'); }
+function fmtDay(k){ return new Date(k+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+const uid = () => Math.random().toString(36).slice(2,9);
+
+function computeScore(mood, doneIds, habits){
+  const build = habits.filter(h=>h.type!=='avoid');
+  const anti  = habits.filter(h=>h.type==='avoid');
+  const sumW = l => l.reduce((s,h)=>s+h.weight,0);
+  const doneW = l => l.filter(h=>doneIds.includes(h.id)).reduce((s,h)=>s+h.weight,0);
+  const base = build.length ? (doneW(build)/(sumW(build)||1))*2-1 : 0;
+  const pen  = anti.length ? doneW(anti)/(sumW(anti)||1) : 0;
+  const hn = Math.max(-1, Math.min(1, base - pen));
+  const mn = (mood-3)/2;
+  return +(HABIT_BLEND*hn + (1-HABIT_BLEND)*mn).toFixed(3);
+}
+
+function buildSeries(logs){
+  const keys = Object.keys(logs).sort();
+  if(!keys.length) return [];
+  const out=[]; let ema=null, k=keys[0]; const end=todayKey();
+  while(k<=end){
+    const logged = !!logs[k];
+    const score = logged ? logs[k].score : IMPUTED;
+    ema = ema===null ? score : +(ALPHA*score+(1-ALPHA)*ema).toFixed(3);
+    out.push({date:k, day:fmtDay(k), score, ema, logged});
+    k = addDays(k,1);
+  }
+  return out;
+}
+
+function makeSampleLogs(habits){
+  const logs={};
+  for(let i=34;i>=1;i--){
+    const k=addDays(todayKey(),-i);
+    const phase=Math.sin((34-i)/5.5);
+    if(phase<-0.55 && Math.random()<0.6) continue;
+    const mood=Math.max(1,Math.min(5,Math.round(3+phase*1.6+(Math.random()-0.5))));
+    const p=0.35+0.5*((phase+1)/2);
+    const done=habits.filter(h=>Math.random() < (h.type==='avoid' ? (1-p)*0.5 : p)).map(h=>h.id);
+    logs[k]={mood,done,score:computeScore(mood,done,habits)};
+  }
+  return logs;
+}
+
+// ============ Claude decomposition (needs your API key) ============
+async function decomposeGoal(goal){
+  const prompt = `Decompose this long-term personal goal into concrete recurring habits.
+
+Goal: "${goal}"
+
+Rules:
+- Return between 5 and 10 habits.
+- Each habit must be a specific, checkable daily or near-daily action, max 6 words.
+- weight is an integer 1-5: how much this habit actually moves the goal (5 = highest leverage).
+- cadence is one of: "daily", "3x/week", "weekly".
+- type is "build" (an action to do) or "avoid" (an anti-habit that sabotages this goal). Include 1-3 "avoid" entries only if clearly relevant. For "avoid", weight = how badly one slip hurts.
+
+Respond with ONLY a raw JSON array, no markdown fences, no preamble:
+[{"name": "...", "weight": 4, "cadence": "daily", "type": "build"}]`;
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': S.apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+  });
+  if(!res.ok) throw new Error('API '+res.status);
+  const data = await res.json();
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+  const arr = JSON.parse(text.replace(/```json|```/g,'').trim());
+  return arr.slice(0,10).map(h=>({
+    id:uid(),
+    name:String(h.name||'').slice(0,60),
+    weight:Math.min(5,Math.max(1,parseInt(h.weight)||3)),
+    cadence:['daily','3x/week','weekly'].includes(h.cadence)?h.cadence:'daily',
+    type: h.type==='avoid'?'avoid':'build'
+  }));
+}
+
+// ============ header ============
+function renderHeader(){
+  const s = buildSeries(S.logs);
+  const cur = s.length ? s[s.length-1].ema : null;
+  const prev = s.length>7 ? s[s.length-8].ema : null;
+  const el = document.getElementById('hScore');
+  el.textContent = cur===null ? '—' : (cur>0?'+':'')+cur.toFixed(2);
+  el.style.color = cur===null ? C.dim : cur>=0 ? C.up : C.down;
+  const d = document.getElementById('hDelta');
+  if(cur!==null && prev!==null){
+    const delta = cur-prev;
+    d.textContent = (delta>=0?'▲ ':'▼ ')+Math.abs(delta).toFixed(2)+' / 7d';
+    d.style.color = delta>=0 ? C.up : C.down;
+  } else d.textContent='';
+  document.getElementById('hGoal').textContent = S.goal;
+}
+
+// ============ views ============
+const V = document.getElementById('view');
+function esc(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+function render(){
+  renderHeader();
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on', b.dataset.v===view));
+  if(!S.habits.length) view='goal';
+  if(view==='today') renderToday();
+  else if(view==='trend') renderTrend();
+  else renderGoal();
+}
+
+// ---- Today ----
+function renderToday(){
+  const tk = todayKey(), existing = S.logs[tk];
+  if(!draft || draft.date!==tk) draft = {date:tk, mood: existing?existing.mood:3, done: existing?[...existing.done]:[]};
+  const builds = S.habits.filter(h=>h.type!=='avoid');
+  const antis  = S.habits.filter(h=>h.type==='avoid');
+  const preview = computeScore(draft.mood, draft.done, S.habits);
+
+  V.innerHTML = `
+    <div style="padding-top:20px;">
+      <div class="label">${fmtDay(tk)} — check in</div>
+      <div class="mood-row">${MOODS.map(([v,t])=>`
+        <button data-mood="${v}" class="${draft.mood===v?'on':''}"><div class="n">${v}</div><div class="t">${t}</div></button>`).join('')}
+      </div>
+      <div class="hlist">${builds.map(h=>hrow(h,false)).join('')}</div>
+      ${antis.length?`
+        <div class="label" style="margin-top:22px;margin-bottom:8px;color:var(--down);">slips — tap only if it happened</div>
+        <div class="hlist">${antis.map(h=>hrow(h,true)).join('')}</div>`:''}
+      <button id="saveBtn" class="cta ${preview<0?'neg':''}">${existing?'Update':'Log'} today · ${preview>0?'+':''}${preview.toFixed(2)}</button>
+      <p class="hint">Silent days score ${IMPUTED} automatically. Logging anything beats logging nothing.</p>
+    </div>`;
+
+  function hrow(h,anti){
+    const on = draft.done.includes(h.id);
+    return `<button class="hrow ${anti?'anti':''} ${on?'on':''}" data-h="${h.id}">
+      <div class="box">${on?(anti?'!':'✓'):''}</div>
+      <div class="nm">${esc(h.name)}</div>
+      <div class="wt">${anti?'−'+h.weight:'w'+h.weight}</div>
+    </button>`;
+  }
+  V.querySelectorAll('[data-mood]').forEach(b=>b.onclick=()=>{draft.mood=+b.dataset.mood;renderToday();});
+  V.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.h;
+    draft.done = draft.done.includes(id) ? draft.done.filter(x=>x!==id) : [...draft.done,id];
+    renderToday();
+  });
+  document.getElementById('saveBtn').onclick=()=>{
+    S.logs[tk]={mood:draft.mood,done:[...draft.done],score:computeScore(draft.mood,draft.done,S.habits)};
+    save(); render();
+    const b=document.getElementById('saveBtn'); if(b){b.textContent='Logged ✓';}
+  };
+}
+
+// ---- Trend ----
+function renderTrend(){
+  const full = buildSeries(S.logs);
+  if(!full.length){
+    V.innerHTML = `<div style="padding-top:40px;text-align:center;">
+      <div style="font-size:15px;color:var(--dim);margin-bottom:20px;">No data yet. The line starts with your first log.</div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button id="seed" class="small" style="color:var(--up);padding:12px 20px;font-size:13px;">Generate 5 weeks of sample data</button>
+        <button id="imp0" class="small" style="padding:12px 20px;font-size:13px;">Import a backup</button>
+      </div>
+      <input type="file" id="impFile0" accept=".json" style="display:none;">
+    </div>`;
+    document.getElementById('seed').onclick=()=>{ if(S.habits.length){S.logs=Object.assign(makeSampleLogs(S.habits),S.logs);save();render();} };
+    document.getElementById('imp0').onclick=()=>document.getElementById('impFile0').click();
+    document.getElementById('impFile0').onchange=(e)=>{
+      const f=e.target.files[0]; if(!f)return;
+      f.text().then(t=>{ try{ const s=JSON.parse(t); if(s.habits&&s.logs){S=s;S.habits=S.habits.map(h=>Object.assign({type:'build'},h));save();render();} else alert('Not a Momentum backup file.'); }catch(err){alert('Could not parse file.');} });
+    };
+    return;
+  }
+  const series = range===0 ? full : full.slice(-range);
+  const logged = series.filter(d=>d.logged).length;
+  const climbing = series.length>1 && series[series.length-1].ema>=series[0].ema;
+
+  V.innerHTML = `
+    <div style="padding-top:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="label" style="margin-bottom:0;">the wave</div>
+        <div style="display:flex;gap:4px;">
+          <button class="chip ${range===14?'on':''}" data-r="14">2W</button>
+          <button class="chip ${range===42?'on':''}" data-r="42">6W</button>
+          <button class="chip ${range===0?'on':''}" data-r="0">ALL</button>
+        </div>
+      </div>
+      <div class="card" style="padding:16px 8px 8px 4px;"><canvas id="chart" height="260"></canvas></div>
+      <div class="stats">
+        <div class="stat"><div class="l">LOG RATE</div><div class="v">${Math.round(logged/series.length*100)}%</div></div>
+        <div class="stat"><div class="l">LOGGED</div><div class="v">${logged}/${series.length}d</div></div>
+        <div class="stat"><div class="l">TREND</div><div class="v" style="color:${climbing?C.up:C.down};">${climbing?'CLIMBING':'SINKING'}</div></div>
+      </div>
+      <p class="hint" style="text-align:left;">Hollow dots = silent days (auto-scored ${IMPUTED}). Bold line = 7-day momentum.</p>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button id="exp" class="small">Export data</button>
+        <button id="imp" class="small">Import data</button>
+        <button id="clr" class="small" style="color:var(--danger);">Clear log data</button>
+      </div>
+      <input type="file" id="impFile" accept=".json" style="display:none;">
+    </div>`;
+
+  V.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{range=+b.dataset.r;renderTrend();});
+  document.getElementById('clr').onclick=()=>{ if(confirm('Clear all log data?')){S.logs={};save();render();} };
+  document.getElementById('exp').onclick=()=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:'application/json'}));
+    a.download='momentum-backup-'+todayKey()+'.json'; a.click();
+  };
+  document.getElementById('imp').onclick=()=>document.getElementById('impFile').click();
+  document.getElementById('impFile').onchange=(e)=>{
+    const f=e.target.files[0]; if(!f)return;
+    f.text().then(t=>{ try{ const s=JSON.parse(t); if(s.habits&&s.logs){S=s;S.habits=S.habits.map(h=>Object.assign({type:'build'},h));save();render();} else alert('Not a Momentum backup file.'); }catch(err){alert('Could not parse file.');} });
+  };
+
+  if(chart) chart.destroy();
+  const min=Math.min(-0.4,...series.map(d=>Math.min(d.ema,d.score)));
+  const max=Math.max(0.4,...series.map(d=>Math.max(d.ema,d.score)));
+  chart = new Chart(document.getElementById('chart'),{
+    type:'line',
+    data:{
+      labels:series.map(d=>d.day),
+      datasets:[
+        { // momentum EMA
+          data:series.map(d=>d.ema), tension:.35, borderWidth:2.5, pointRadius:0,
+          segment:{borderColor:ctx=>((ctx.p0.parsed.y+ctx.p1.parsed.y)/2>=0?C.up:C.down)},
+          fill:{target:{value:0},above:'rgba(55,230,196,.15)',below:'rgba(255,174,82,.15)'},
+          borderColor:C.up
+        },
+        { // raw daily dots
+          data:series.map(d=>d.score), showLine:false, pointRadius:2.4, pointHoverRadius:4,
+          pointBackgroundColor:series.map(d=>d.logged?(d.score>=0?C.up:C.down):'transparent'),
+          pointBorderColor:series.map(d=>d.logged?'transparent':C.dim),
+          pointBorderWidth:1
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#1A2540',borderColor:C.line,borderWidth:1,
+        callbacks:{label:c=>(c.datasetIndex===0?'momentum ':'day score ')+c.parsed.y.toFixed(2)}
+      }},
+      scales:{
+        x:{grid:{display:false},border:{color:C.line},ticks:{color:C.dim,font:{family:'JetBrains Mono',size:9},maxTicksLimit:6}},
+        y:{min,max,border:{display:false},
+           grid:{color:ctx=>Math.abs(ctx.tick.value)<1e-9?'rgba(107,122,144,.6)':'rgba(38,51,77,.4)'},
+           ticks:{color:C.dim,font:{family:'JetBrains Mono',size:9},callback:v=>(+v).toFixed(1)}}
+      }
+    }
+  });
+  document.getElementById('chart').parentElement.style.height='260px';
+}
+
+// ---- Goal ----
+function renderGoal(){
+  if(!editHabits) editHabits = S.habits.map(h=>({...h}));
+  V.innerHTML = `
+    <div style="padding-top:20px;">
+      <div class="label">long-term goal</div>
+      <textarea id="gTxt" rows="2" placeholder="e.g. Reach 12% body fat by December while keeping strength">${esc(S.goal)}</textarea>
+      <button id="ai" class="cta" style="margin-top:10px;background:rgba(55,230,196,.10);border:1px solid var(--up);color:var(--up);font-size:14px;">Reverse-engineer into habits</button>
+      <div id="gErr" style="color:var(--danger);font-size:12px;margin-top:8px;"></div>
+
+      <div style="margin-top:24px;">
+        <div class="label">habits · weight = impact (1–5)</div>
+        <div class="hlist" id="eList"></div>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button id="addB" class="ghost">+ Habit</button>
+          <button id="addA" class="ghost warn">+ Anti-habit</button>
+        </div>
+      </div>
+
+      <button id="lock" class="cta" style="display:none;">Lock it in — start tracking</button>
+
+      <div style="margin-top:32px;">
+        <div class="label">anthropic api key (optional — for goal breakdown)</div>
+        <input type="password" id="apiKey" placeholder="sk-ant-..." value="${esc(S.apiKey)}" style="font-size:13px;">
+        <p class="hint" style="text-align:left;">Stored only in this browser's localStorage. Without it, add habits manually — everything else works.</p>
+      </div>
+    </div>`;
+
+  const list = document.getElementById('eList');
+  function drawList(){
+    list.innerHTML = editHabits.map((h,i)=>`
+      <div class="erow">
+        <input value="${esc(h.name)}" data-i="${i}" placeholder="${h.type==='avoid'?'Anti-habit (thing to avoid)':'Habit name'}">
+        <button class="tag ${h.type==='avoid'?'anti':''}" data-t="${i}">${h.type==='avoid'?'AVOID':'BUILD'}</button>
+        <div class="wbar">${[1,2,3,4,5].map(w=>`<button data-w="${i}:${w}" style="background:${w<=h.weight?(h.type==='avoid'?C.down:C.up):C.line};"></button>`).join('')}</div>
+        <button class="x" data-x="${i}">×</button>
+      </div>`).join('');
+    document.getElementById('lock').style.display = editHabits.some(h=>h.name.trim()) ? 'block' : 'none';
+    list.querySelectorAll('input').forEach(inp=>inp.oninput=()=>{editHabits[+inp.dataset.i].name=inp.value; document.getElementById('lock').style.display = editHabits.some(h=>h.name.trim())?'block':'none';});
+    list.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const h=editHabits[+b.dataset.t];h.type=h.type==='avoid'?'build':'avoid';drawList();});
+    list.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{const [i,w]=b.dataset.w.split(':');editHabits[+i].weight=+w;drawList();});
+    list.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{editHabits.splice(+b.dataset.x,1);drawList();});
+  }
+  drawList();
+
+  document.getElementById('apiKey').onchange=(e)=>{S.apiKey=e.target.value.trim();save();};
+  document.getElementById('addB').onclick=()=>{editHabits.push({id:uid(),name:'',weight:3,cadence:'daily',type:'build'});drawList();};
+  document.getElementById('addA').onclick=()=>{editHabits.push({id:uid(),name:'',weight:3,cadence:'daily',type:'avoid'});drawList();};
+  document.getElementById('ai').onclick=async()=>{
+    const goal=document.getElementById('gTxt').value.trim();
+    const err=document.getElementById('gErr'); err.textContent='';
+    if(!goal) return;
+    if(!S.apiKey){ err.textContent='Add your Anthropic API key below to use AI breakdown, or add habits manually.'; return; }
+    const btn=document.getElementById('ai'); btn.textContent='Breaking it down…'; btn.disabled=true;
+    try{ editHabits = await decomposeGoal(goal); drawList(); }
+    catch(e){ err.textContent='Breakdown failed ('+e.message+'). Add habits manually below.'; }
+    btn.textContent='Reverse-engineer into habits'; btn.disabled=false;
+  };
+  document.getElementById('lock').onclick=()=>{
+    S.goal=document.getElementById('gTxt').value.trim();
+    S.habits=editHabits.filter(h=>h.name.trim());
+    editHabits=null; save(); view='today'; render();
+  };
+}
+
+// ============ nav + boot ============
+document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render();});
+render();
+</script>
+</body>
+</html>
