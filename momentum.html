@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Momentum</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap');
 :root{
@@ -291,7 +291,8 @@ function renderTrend(){
   }
   const series = range===0 ? full : full.slice(-range);
   const logged = series.filter(d=>d.logged).length;
-  const climbing = series.length>1 && series[series.length-1].ema>=series[0].ema;
+  const enough = series.length>1;
+  const climbing = enough && series[series.length-1].ema>=series[0].ema;
 
   V.innerHTML = `
     <div style="padding-top:20px;">
@@ -307,7 +308,7 @@ function renderTrend(){
       <div class="stats">
         <div class="stat"><div class="l">LOG RATE</div><div class="v">${Math.round(logged/series.length*100)}%</div></div>
         <div class="stat"><div class="l">LOGGED</div><div class="v">${logged}/${series.length}d</div></div>
-        <div class="stat"><div class="l">TREND</div><div class="v" style="color:${climbing?C.up:C.down};">${climbing?'CLIMBING':'SINKING'}</div></div>
+        <div class="stat"><div class="l">TREND</div><div class="v" style="color:${enough?(climbing?C.up:C.down):C.dim};">${enough?(climbing?'CLIMBING':'SINKING'):'DAY 1'}</div></div>
       </div>
       <p class="hint" style="text-align:left;">Hollow dots = silent days (auto-scored ${IMPUTED}). Bold line = 7-day momentum.</p>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
@@ -332,9 +333,15 @@ function renderTrend(){
   };
 
   if(chart) chart.destroy();
+  const cv = document.getElementById('chart');
+  cv.parentElement.style.height='260px';
+  if(typeof Chart === 'undefined'){
+    cv.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--dim);font-size:12px;font-family:JetBrains Mono,monospace;text-align:center;padding:0 16px;">Chart library failed to load — check connection and refresh.</div>';
+    return;
+  }
   const min=Math.min(-0.4,...series.map(d=>Math.min(d.ema,d.score)));
   const max=Math.max(0.4,...series.map(d=>Math.max(d.ema,d.score)));
-  chart = new Chart(document.getElementById('chart'),{
+  chart = new Chart(cv,{
     type:'line',
     data:{
       labels:series.map(d=>d.day),
@@ -367,7 +374,6 @@ function renderTrend(){
       }
     }
   });
-  document.getElementById('chart').parentElement.style.height='260px';
 }
 
 // ---- Goal ----
