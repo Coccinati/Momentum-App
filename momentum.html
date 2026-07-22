@@ -105,12 +105,56 @@ function load(){
     if(raw){ const s = JSON.parse(raw);
       s.habits = (s.habits||[]).map(h => Object.assign({type:'build'}, h));
       s.logs = s.logs || {}; s.goal = s.goal || ''; s.apiKey = s.apiKey || '';
+      s.gistToken = s.gistToken || ''; s.gistId = s.gistId || ''; s.savedAt = s.savedAt || 0;
       return s;
     }
   }catch(e){}
-  return {goal:'',habits:[],logs:{},apiKey:''};
+  return {goal:'',habits:[],logs:{},apiKey:'',gistToken:'',gistId:'',savedAt:0};
 }
-function save(){ localStorage.setItem(KEY, JSON.stringify(S)); }
+function save(){ S.savedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(S)); scheduleSync(); }
+
+// ============ GitHub gist sync (optional) ============
+let syncTimer=null;
+function setSyncStatus(t){ const el=document.getElementById('syncStat'); if(el) el.textContent=t; }
+function scheduleSync(){ if(!S.gistToken) return; clearTimeout(syncTimer); syncTimer=setTimeout(pushGist,1500); }
+function cloudPayload(){ const c=Object.assign({},S); delete c.apiKey; delete c.gistToken; delete c.gistId; return c; }
+async function gh(path,opts={}){
+  const res = await fetch('https://api.github.com'+path, Object.assign({},opts,{headers:Object.assign({'Authorization':'Bearer '+S.gistToken,'Accept':'application/vnd.github+json','Content-Type':'application/json'},opts.headers||{})}));
+  if(!res.ok) throw new Error('GitHub '+res.status);
+  return res.json();
+}
+async function pushGist(){
+  if(!S.gistToken) return;
+  try{
+    setSyncStatus('syncing…');
+    const files={'momentum-data.json':{content:JSON.stringify(cloudPayload(),null,2)}};
+    if(S.gistId){ await gh('/gists/'+S.gistId,{method:'PATCH',body:JSON.stringify({files})}); }
+    else{ const g=await gh('/gists',{method:'POST',body:JSON.stringify({description:'Momentum app data',public:false,files})}); S.gistId=g.id; localStorage.setItem(KEY,JSON.stringify(S)); }
+    setSyncStatus('synced ✓ '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+  }catch(e){ setSyncStatus('sync failed — '+e.message); }
+}
+function adoptRemote(remote){
+  S = Object.assign({}, remote, {apiKey:S.apiKey, gistToken:S.gistToken, gistId:S.gistId});
+  S.habits=(S.habits||[]).map(h=>Object.assign({type:'build'},h)); S.logs=S.logs||{};
+  localStorage.setItem(KEY,JSON.stringify(S));
+}
+async function connectSync(token){
+  S.gistToken=token; setSyncStatus('connecting…');
+  const gists = await gh('/gists?per_page=100');
+  const found = gists.find(g=>g.files && g.files['momentum-data.json']);
+  if(found){
+    S.gistId=found.id;
+    const g=await gh('/gists/'+found.id);
+    const remote=JSON.parse(g.files['momentum-data.json'].content);
+    const localEmpty = !Object.keys(S.logs).length;
+    if(localEmpty || (remote.savedAt||0) > (S.savedAt||0)) adoptRemote(remote);
+    else localStorage.setItem(KEY,JSON.stringify(S));
+    render(); setSyncStatus('connected — data restored ✓');
+  } else {
+    localStorage.setItem(KEY,JSON.stringify(S));
+    await pushGist(); render(); setSyncStatus('connected — cloud copy created ✓');
+  }
+}
 
 // ============ engine ============
 const todayKey = () => new Date().toLocaleDateString('sv-SE'); // local YYYY-MM-DD
@@ -402,6 +446,14 @@ function renderGoal(){
         <input type="password" id="apiKey" placeholder="sk-ant-..." value="${esc(S.apiKey)}" style="font-size:13px;">
         <p class="hint" style="text-align:left;">Stored only in this browser's localStorage. Without it, add habits manually — everything else works.</p>
       </div>
+
+      <div style="margin-top:24px;">
+        <div class="label">github sync (optional — survives browser wipes)</div>
+        <input type="password" id="ghTok" placeholder="GitHub token (classic, gist scope)" value="${esc(S.gistToken)}" style="font-size:13px;">
+        <button id="ghBtn" class="small" style="margin-top:8px;color:var(--up);padding:10px 16px;font-size:13px;">Connect &amp; restore</button>
+        <div id="syncStat" class="hint" style="text-align:left;margin-top:8px;">${S.gistToken?'sync on':'not connected'}</div>
+        <p class="hint" style="text-align:left;">Auto-backs up every log to a secret Gist on your GitHub. After a wipe or on a new device: paste the same token, tap Connect, everything comes back. Token: github.com → Settings → Developer settings → Tokens (classic) → Generate, tick only \"gist\".</p>
+      </div>
     </div>`;
 
   const list = document.getElementById('eList');
@@ -422,6 +474,11 @@ function renderGoal(){
   drawList();
 
   document.getElementById('apiKey').onchange=(e)=>{S.apiKey=e.target.value.trim();save();};
+  document.getElementById('ghBtn').onclick=async()=>{
+    const t=document.getElementById('ghTok').value.trim();
+    if(!t){setSyncStatus('paste a token first');return;}
+    try{ await connectSync(t); }catch(e){ setSyncStatus('failed — '+e.message+' (check token has gist scope)'); }
+  };
   document.getElementById('addB').onclick=()=>{editHabits.push({id:uid(),name:'',weight:3,cadence:'daily',type:'build'});drawList();};
   document.getElementById('addA').onclick=()=>{editHabits.push({id:uid(),name:'',weight:3,cadence:'daily',type:'avoid'});drawList();};
   document.getElementById('ai').onclick=async()=>{
@@ -444,6 +501,17 @@ function renderGoal(){
 // ============ nav + boot ============
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render();});
 render();
+// on boot: if sync is connected, pull cloud copy if it's newer (cross-device + post-wipe)
+(async()=>{
+  if(S.gistToken && S.gistId){
+    try{
+      const g=await gh('/gists/'+S.gistId);
+      const remote=JSON.parse(g.files['momentum-data.json'].content);
+      if((remote.savedAt||0) > (S.savedAt||0)){ adoptRemote(remote); render(); }
+      setSyncStatus('synced ✓');
+    }catch(e){ setSyncStatus('sync check failed — '+e.message); }
+  }
+})();
 </script>
 </body>
 </html>
