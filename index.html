@@ -264,7 +264,6 @@ function esc(t){ const d=document.createElement('div'); d.textContent=t; return 
 function render(){
   renderHeader();
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('on', b.dataset.v===view));
-  if(!S.habits.length) view='goal';
   if(view==='today') renderToday();
   else if(view==='trend') renderTrend();
   else renderGoal();
@@ -281,6 +280,7 @@ function renderToday(){
   V.innerHTML = `
     <div style="padding-top:20px;">
       <div class="label">${fmtDay(tk)} — check in</div>
+      ${S.habits.length?'':'<div style="font-size:13px;color:var(--dim);margin-bottom:16px;line-height:1.5;">No habits yet — set them up in the <b>Goal</b> tab, or restore a backup from the <b>Trend</b> tab.</div>'}
       <div class="mood-row">${MOODS.map(([v,t])=>`
         <button data-mood="${v}" class="${draft.mood===v?'on':''}"><div class="n">${v}</div><div class="t">${t}</div></button>`).join('')}
       </div>
