@@ -133,6 +133,7 @@ async function pushGist(){
     setSyncStatus('synced ✓ '+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
   }catch(e){ setSyncStatus('sync failed — '+e.message); }
 }
+function hasData(x){ return !!(x && (((x.habits||[]).length) || Object.keys(x.logs||{}).length)); }
 function adoptRemote(remote){
   S = Object.assign({}, remote, {apiKey:S.apiKey, gistToken:S.gistToken, gistId:S.gistId});
   S.habits=(S.habits||[]).map(h=>Object.assign({type:'build'},h)); S.logs=S.logs||{};
@@ -146,9 +147,8 @@ async function connectSync(token){
     S.gistId=found.id;
     const g=await gh('/gists/'+found.id);
     const remote=JSON.parse(g.files['momentum-data.json'].content);
-    const localEmpty = !Object.keys(S.logs).length;
-    if(localEmpty || (remote.savedAt||0) > (S.savedAt||0)) adoptRemote(remote);
-    else localStorage.setItem(KEY,JSON.stringify(S));
+    if(hasData(remote) && (!hasData(S) || (remote.savedAt||0) > (S.savedAt||0))) adoptRemote(remote);
+    else { localStorage.setItem(KEY,JSON.stringify(S)); if(hasData(S)) await pushGist(); }
     render(); setSyncStatus('connected — data restored ✓');
   } else {
     localStorage.setItem(KEY,JSON.stringify(S));
@@ -329,7 +329,7 @@ function renderTrend(){
     document.getElementById('imp0').onclick=()=>document.getElementById('impFile0').click();
     document.getElementById('impFile0').onchange=(e)=>{
       const f=e.target.files[0]; if(!f)return;
-      f.text().then(t=>{ try{ const s=JSON.parse(t); if(s.habits&&s.logs){S=s;S.habits=S.habits.map(h=>Object.assign({type:'build'},h));save();render();} else alert('Not a Momentum backup file.'); }catch(err){alert('Could not parse file.');} });
+      f.text().then(t=>{ try{ const s=JSON.parse(t); if(s.habits&&s.logs){S=Object.assign({},s,{apiKey:S.apiKey,gistToken:S.gistToken,gistId:S.gistId});S.habits=S.habits.map(h=>Object.assign({type:'build'},h));S.logs=S.logs||{};save();render();} else alert('Not a Momentum backup file.'); }catch(err){alert('Could not parse file.');} });
     };
     return;
   }
@@ -373,7 +373,7 @@ function renderTrend(){
   document.getElementById('imp').onclick=()=>document.getElementById('impFile').click();
   document.getElementById('impFile').onchange=(e)=>{
     const f=e.target.files[0]; if(!f)return;
-    f.text().then(t=>{ try{ const s=JSON.parse(t); if(s.habits&&s.logs){S=s;S.habits=S.habits.map(h=>Object.assign({type:'build'},h));save();render();} else alert('Not a Momentum backup file.'); }catch(err){alert('Could not parse file.');} });
+    f.text().then(t=>{ try{ const s=JSON.parse(t); if(s.habits&&s.logs){S=Object.assign({},s,{apiKey:S.apiKey,gistToken:S.gistToken,gistId:S.gistId});S.habits=S.habits.map(h=>Object.assign({type:'build'},h));S.logs=S.logs||{};save();render();} else alert('Not a Momentum backup file.'); }catch(err){alert('Could not parse file.');} });
   };
 
   if(chart) chart.destroy();
@@ -507,7 +507,7 @@ render();
     try{
       const g=await gh('/gists/'+S.gistId);
       const remote=JSON.parse(g.files['momentum-data.json'].content);
-      if((remote.savedAt||0) > (S.savedAt||0)){ adoptRemote(remote); render(); }
+      if(hasData(remote) && (remote.savedAt||0) > (S.savedAt||0)){ adoptRemote(remote); render(); }
       setSyncStatus('synced ✓');
     }catch(e){ setSyncStatus('sync check failed — '+e.message); }
   }
